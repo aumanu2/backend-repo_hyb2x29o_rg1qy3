@@ -1,8 +1,9 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-app = FastAPI()
+app = FastAPI(title="Akshansh Backend", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,7 +15,15 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello from FastAPI Backend!"}
+    return {
+        "name": "Akshansh Backend",
+        "message": "Welcome. FastAPI is live.",
+        "endpoints": ["/health", "/test", "/api/hello"],
+    }
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 @app.get("/api/hello")
 def hello():
@@ -31,39 +40,30 @@ def test_database():
         "connection_status": "Not Connected",
         "collections": []
     }
-    
+
     try:
-        # Try to import database module
         from database import db
-        
         if db is not None:
             response["database"] = "✅ Available"
-            response["database_url"] = "✅ Configured"
-            response["database_name"] = db.name if hasattr(db, 'name') else "✅ Connected"
             response["connection_status"] = "Connected"
-            
-            # Try to list collections to verify connectivity
             try:
-                collections = db.list_collection_names()
-                response["collections"] = collections[:10]  # Show first 10 collections
+                response["database_name"] = db.name
+                cols = db.list_collection_names()
+                response["collections"] = cols[:10]
                 response["database"] = "✅ Connected & Working"
             except Exception as e:
-                response["database"] = f"⚠️  Connected but Error: {str(e)[:50]}"
+                response["database"] = f"⚠️ Connected but Error: {str(e)[:80]}"
         else:
-            response["database"] = "⚠️  Available but not initialized"
-            
+            response["database"] = "⚠️ Available but not initialized"
     except ImportError:
-        response["database"] = "❌ Database module not found (run enable-database first)"
+        response["database"] = "❌ Database module not found"
     except Exception as e:
-        response["database"] = f"❌ Error: {str(e)[:50]}"
-    
-    # Check environment variables
-    import os
-    response["database_url"] = "✅ Set" if os.getenv("DATABASE_URL") else "❌ Not Set"
-    response["database_name"] = "✅ Set" if os.getenv("DATABASE_NAME") else "❌ Not Set"
-    
-    return response
+        response["database"] = f"❌ Error: {str(e)[:80]}"
 
+    response["database_url"] = "✅ Set" if os.getenv("DATABASE_URL") else "❌ Not Set"
+    response["database_name"] = response.get("database_name") or ("✅ Set" if os.getenv("DATABASE_NAME") else "❌ Not Set")
+
+    return JSONResponse(content=response)
 
 if __name__ == "__main__":
     import uvicorn
